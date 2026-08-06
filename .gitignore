@@ -1,0 +1,13 @@
+
+.DS_Store
+
+/.cache
+/build
+
+
+.env
+.env.*
+
+
+
+remote_logs.txt
