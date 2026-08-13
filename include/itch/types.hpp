@@ -62,58 +62,97 @@ struct SystemEventMessage {
     uint32_t orderbook_id;      // Orderbook ID (0 for system-wide)
 };
 
-// Orderbook Directory Message [R] - 97 bytes
+// Orderbook Trading Action Message [H] - 11 bytes
+struct OrderbookTradingActionMessage {
+    char     message_type;      // 'H'
+    uint32_t timestamp;         // 4
+    uint32_t orderbook_id;      // 4
+    char     trading_state;     // 1
+    char     reason;            // 1
+} __attribute__((packed));
+
+
+// Orderbook Directory Message [R] - 171 bytes
 struct OrderbookDirectoryMessage {
     char     message_type;      // 'R'
-    uint32_t timestamp;         // Timestamp
-    uint32_t orderbook_id;      // Unique Orderbook ID
-    char     symbol[32];        // Ticker Symbol (e.g., "GP                              ")
-    char     long_name[32];     // Full Company Name
-    char     isin[12];          // ISIN Code
-    char     financial_status;  // Financial Status ('A' = Active)
-    char     currency[3];       // Currency ("BDT")
-    uint16_t price_decimals;    // Price Decimal Places (e.g., 2)
-    uint16_t nominal_decimals;  // Nominal Decimal Places
-    uint32_t lot_size;          // Trading Lot Size (e.g., 1 or 100)
-};
+    uint32_t timestamp;         // 4
+    uint32_t orderbook_id;      // 4
+    char     price_type;        // 1
+    char     isin[12];          // 12
+    char     sec_code[12];      // 12
+    char     currency[3];       // 3
+    char     group[8];          // 8
+    uint64_t minimum_quantity;  // 8
+    uint32_t quantity_tick_size_table_id; // 4
+    uint32_t price_tick_size_table_id;    // 4
+    uint32_t price_decimals;    // 4
+    uint32_t delisting_date;    // 4
+    uint32_t delisting_time;    // 4
+    char     market_type;       // 1
+    uint32_t company;           // 4
+    char     listing_type;      // 1
+    char     sector[12];        // 12
+    char     instr[12];         // 12
+    char     security_name[60]; // 60
+    uint32_t maturity_date;     // 4
+    uint32_t yield_decimals;    // 4
+} __attribute__((packed));
 
-// Add Order Message [A] - 30 bytes
+// Company Directory Message [P] - 69 bytes
+struct CompanyDirectoryMessage {
+    char     message_type;      // 'P'
+    uint32_t timestamp;         // 4
+    uint32_t company;           // 4
+    char     company_name[30];  // 30
+    char     company_id[30];    // 30
+} __attribute__((packed));
+
+// Add Order Message [A] - 34 bytes
 struct AddOrderMessage {
     char     message_type;      // 'A'
-    uint32_t timestamp;         // Timestamp
-    uint64_t order_number;      // Unique Order Reference Number
-    uint32_t orderbook_id;      // Orderbook ID
-    char     side;              // 'B' = Buy, 'S' = Sell
-    uint32_t quantity;          // Shares quantity
-    uint32_t price;             // Price (in price decimals format, e.g. 150.50 -> 15050)
-    char     participant_id[4]; // Broker/Participant ID
-};
+    uint32_t timestamp;         // 4
+    uint64_t order_number;      // 8
+    char     side;              // 1
+    uint64_t quantity;          // 8
+    uint32_t orderbook_id;      // 4
+    uint32_t price;             // 4
+    uint32_t yield;             // 4
+} __attribute__((packed));
 
-// Order Executed Message [E] - 25 bytes
+// Order Executed Message [E] - 29 bytes
 struct OrderExecutedMessage {
     char     message_type;      // 'E'
-    uint32_t timestamp;         // Timestamp
-    uint64_t order_number;      // Existing Order Reference Number
-    uint32_t executed_quantity; // Executed quantity
-    uint64_t match_id;          // Unique Match/Trade Execution ID
-};
-
-// Order Replace Message [U] - 29 bytes
-struct OrderReplaceMessage {
-    char     message_type;      // 'U'
-    uint32_t timestamp;         // Timestamp
-    uint64_t orig_order_number; // Reference to original Order Number
-    uint64_t new_order_number;  // New assigned Order Number
-    uint32_t quantity;          // Updated quantity
-    uint32_t price;             // Updated price
-};
+    uint32_t timestamp;         // 4
+    uint64_t order_number;      // 8
+    uint64_t executed_quantity; // 8
+    uint64_t match_id;          // 8
+} __attribute__((packed));
 
 // Order Delete Message [D] - 13 bytes
 struct OrderDeleteMessage {
     char     message_type;      // 'D'
-    uint32_t timestamp;         // Timestamp
-    uint64_t order_number;      // Reference to Order Number to cancel/delete
-};
+    uint32_t timestamp;         // 4
+    uint64_t order_number;      // 8
+} __attribute__((packed));
+
+// Order Replace Message [U] - 37 bytes
+struct OrderReplaceMessage {
+    char     message_type;      // 'U'
+    uint32_t timestamp;         // 4
+    uint64_t orig_order_number; // 8
+    uint64_t new_order_number;  // 8
+    uint64_t quantity;          // 8
+    uint32_t price;             // 4
+    uint32_t yield;             // 4
+} __attribute__((packed));
+
+// Index Data Specific Structs
+struct IndexValueMessage { // 'Z' - 17 bytes
+    char     message_type;      // 1
+    uint32_t timestamp;         // 4
+    uint32_t index_orderbook;   // 4
+    uint64_t value;             // 8
+} __attribute__((packed));
 
 // MoldUDP64 Packet Header - 20 bytes
 struct MoldUDP64Header {
@@ -131,11 +170,14 @@ struct MoldUDP64BlockHeader {
 
 // Compile-time assertion of byte sizes to strictly validate DSE ITCH protocol layout
 static_assert(sizeof(SystemEventMessage) == 18, "SystemEventMessage size mismatch");
-static_assert(sizeof(OrderbookDirectoryMessage) == 97, "OrderbookDirectoryMessage size mismatch");
-static_assert(sizeof(AddOrderMessage) == 30, "AddOrderMessage size mismatch");
-static_assert(sizeof(OrderExecutedMessage) == 25, "OrderExecutedMessage size mismatch");
-static_assert(sizeof(OrderReplaceMessage) == 29, "OrderReplaceMessage size mismatch");
+static_assert(sizeof(OrderbookDirectoryMessage) == 171, "OrderbookDirectoryMessage size mismatch");
+static_assert(sizeof(CompanyDirectoryMessage) == 69, "CompanyDirectoryMessage size mismatch");
+static_assert(sizeof(OrderbookTradingActionMessage) == 11, "OrderbookTradingActionMessage size mismatch");
+static_assert(sizeof(AddOrderMessage) == 34, "AddOrderMessage size mismatch");
+static_assert(sizeof(OrderExecutedMessage) == 29, "OrderExecutedMessage size mismatch");
+static_assert(sizeof(OrderReplaceMessage) == 37, "OrderReplaceMessage size mismatch");
 static_assert(sizeof(OrderDeleteMessage) == 13, "OrderDeleteMessage size mismatch");
+static_assert(sizeof(IndexValueMessage) == 17, "IndexValueMessage size mismatch");
 static_assert(sizeof(MoldUDP64Header) == 20, "MoldUDP64Header size mismatch");
 static_assert(sizeof(MoldUDP64BlockHeader) == 2, "MoldUDP64BlockHeader size mismatch");
 

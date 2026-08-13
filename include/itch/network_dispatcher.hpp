@@ -179,11 +179,12 @@ private:
         if (target_mps_ == 0) return;
 
         msgs_in_current_window_++;
-        if (msgs_in_current_window_ >= 1000) {
+        uint64_t batch_size = std::min<uint64_t>(1000ULL, std::max<uint64_t>(1ULL, target_mps_ / 20));
+        if (msgs_in_current_window_ >= batch_size) {
             auto now = std::chrono::high_resolution_clock::now();
             auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(now - last_rate_check_).count();
             
-            double expected_us = (1000.0 / static_cast<double>(target_mps_)) * 1000000.0;
+            double expected_us = (static_cast<double>(batch_size) / static_cast<double>(target_mps_)) * 1000000.0;
             
             if (elapsed_us < expected_us) {
                 auto sleep_us = static_cast<int64_t>(expected_us - elapsed_us);

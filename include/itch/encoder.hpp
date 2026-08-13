@@ -97,4 +97,33 @@ public:
     }
 };
 
+// 3. SoupBinTCP Implementation of IEncoder Interface
+class SoupBinTCPEncoder : public IEncoder {
+private:
+    uint64_t seq_num_{1ULL};
+
+public:
+    void skip_sequence_numbers(uint64_t count) noexcept override { seq_num_ += count; }
+    uint64_t current_sequence_number() const noexcept override { return seq_num_; }
+
+    bool append_message(const void* msg_data, size_t msg_len, std::vector<uint8_t>& out_packet) override {
+        // SoupBinTCP Sequenced packet: length (2 bytes) + 'S' (1 byte) + payload
+        uint16_t packet_len = 1 + msg_len;
+        uint16_t be_len = host_to_be16(packet_len);
+
+        size_t old_size = out_packet.size();
+        out_packet.resize(old_size + 2 + packet_len);
+        std::memcpy(out_packet.data() + old_size, &be_len, 2);
+        out_packet[old_size + 2] = 'S';
+        std::memcpy(out_packet.data() + old_size + 3, msg_data, msg_len);
+        
+        seq_num_++;
+        return true; // Immediate pass-through
+    }
+
+    bool finalize_packet(std::vector<uint8_t>& out_packet) override {
+        return !out_packet.empty();
+    }
+};
+
 } // namespace itch

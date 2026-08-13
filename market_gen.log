@@ -1,0 +1,16 @@
+[TcpServer] Listening on 127.0.0.1:54001 for SoupBinTCP client...
+=================================================================
+   VelocityITCH Engine Configuration
+=================================================================
+ Target Address   : 127.0.0.1:54001 (TCP Server)
+ Framing Mode     : SoupBinTCP
+ Protocol Mode    : MARKET Data
+ Target MPS Rate  : 1000000 MPS
+ Mode             : Synthetic Generator
+ Stream Recorder  : Disabled
+ Market Kinetics  : Continuous
+ Chaos Faults     : Drop: 0% | Seq Gap Step: 0 | Jitter: 0us
+=================================================================
+
+[INFO] EngineScheduler: Initializing market session...
+[TcpServer] Waiting for client connection...

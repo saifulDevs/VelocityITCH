@@ -6,16 +6,20 @@
 
 namespace itch {
 
-enum class NetworkMode { Multicast, Unicast };
-enum class FramingMode { Raw, MoldUDP64 };
+enum class NetworkMode { Multicast, Unicast, TcpServer };
+enum class FramingMode { Raw, MoldUDP64, SoupBinTCP };
+enum class ProtocolMode { Market, Index };
 
 struct Config {
-    std::string ip{"239.255.0.1"};
-    uint16_t port{12345};
-    NetworkMode net_mode{NetworkMode::Multicast};
-    FramingMode framing_mode{FramingMode::MoldUDP64};
-    uint64_t target_rate_mps{1000000};
+    std::string ip{"127.0.0.1"};
+    uint16_t port{54001};
+    NetworkMode net_mode{NetworkMode::TcpServer};
+    FramingMode framing_mode{FramingMode::SoupBinTCP};
+    ProtocolMode protocol_mode{ProtocolMode::Market};
+    uint64_t target_rate_mps{2};
     uint64_t max_count{0};
+    uint32_t add_ratio{50};
+    uint32_t exec_ratio{40};
 
     // Market Kinetics & Session Lifecycle
     std::string replay_file{""};
@@ -38,8 +42,9 @@ struct Config {
                   << "   VelocityITCH Engine Configuration\n"
                   << "=================================================================\n"
                   << " Target Address   : " << ip << ":" << port << " (" 
-                  << (net_mode == NetworkMode::Multicast ? "UDP Multicast" : "UDP Unicast") << ")\n"
-                  << " Framing Mode     : " << (framing_mode == FramingMode::MoldUDP64 ? "MoldUDP64" : "Raw ITCH") << "\n"
+                  << (net_mode == NetworkMode::Multicast ? "UDP Multicast" : (net_mode == NetworkMode::Unicast ? "UDP Unicast" : "TCP Server")) << ")\n"
+                  << " Framing Mode     : " << (framing_mode == FramingMode::MoldUDP64 ? "MoldUDP64" : (framing_mode == FramingMode::SoupBinTCP ? "SoupBinTCP" : "Raw ITCH")) << "\n"
+                  << " Protocol Mode    : " << (protocol_mode == ProtocolMode::Index ? "INDEX Data" : "MARKET Data") << "\n"
                   << " Target MPS Rate  : " << (target_rate_mps == 0 ? "UNLIMITED (Max Speed)" : std::to_string(target_rate_mps) + " MPS") << "\n"
                   << " Mode             : " << (replay_file.empty() ? "Synthetic Generator" : "Historical Replay: " + replay_file) << "\n"
                   << " Stream Recorder  : " << (record_file.empty() ? "Disabled" : "Recording to " + record_file) << "\n"

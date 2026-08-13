@@ -42,6 +42,7 @@ private:
 public:
     explicit EngineScheduler(Config config)
         : config_(config),
+          generator_(config.protocol_mode),
           chaos_injector_(ChaosConfig{
               config.packet_drop_rate,
               0.0,
@@ -51,14 +52,22 @@ public:
           }) {
 
         // Polymorphic encoder selection based on config
+        generator_.set_ratios(config_.add_ratio, config_.exec_ratio);
+
         if (config_.framing_mode == FramingMode::Raw) {
             encoder_ = std::make_unique<RawItchEncoder>();
+        } else if (config_.framing_mode == FramingMode::SoupBinTCP) {
+            encoder_ = std::make_unique<SoupBinTCPEncoder>();
         } else {
             encoder_ = std::make_unique<MoldUDP64Encoder>();
         }
 
         // Polymorphic transport initialization
-        transport_ = std::make_unique<UdpTransport>(config_.ip, config_.port, config_.net_mode);
+        if (config_.net_mode == NetworkMode::TcpServer) {
+            transport_ = std::make_unique<TcpServerTransport>(config_.ip, config_.port);
+        } else {
+            transport_ = std::make_unique<UdpTransport>(config_.ip, config_.port, config_.net_mode);
+        }
 
         // Polymorphic recorder initialization
         if (!config_.record_file.empty()) {
@@ -88,10 +97,32 @@ public:
         auto msg_s = generator_.generate_start_of_system_hours();
         dispatch_raw_event(&msg_s, sizeof(msg_s));
 
-        // 3. Send Orderbook Directory 'R'
+        // 2b. Send System Event 'Q' (Start of Market Hours / Continuous Trading Open)
+        auto msg_q = generator_.generate_start_of_market_hours();
+        dispatch_raw_event(&msg_q, sizeof(msg_q));
+
+        // 3. Send Company Directory 'P'
+        auto company_directories = generator_.generate_company_directories();
+        for (const auto& cdir : company_directories) {
+            dispatch_raw_event(&cdir, sizeof(cdir));
+        }
+
+        // 4. Send Orderbook Directory 'R'
         auto directories = generator_.generate_directory();
         for (const auto& dir : directories) {
             dispatch_raw_event(&dir, sizeof(dir));
+        }
+
+        // 4. Send Orderbook Trading Action 'H'
+        auto trading_actions = generator_.generate_trading_actions();
+        for (const auto& action : trading_actions) {
+            dispatch_raw_event(&action, sizeof(action));
+        }
+
+        // 5. Send Reference Prices 'A' (with 0 order id and 0 quantity)
+        auto ref_prices = generator_.generate_ref_prices();
+        for (const auto& ref : ref_prices) {
+            dispatch_raw_event(&ref, sizeof(ref));
         }
 
         flush_encoder();
@@ -197,11 +228,12 @@ private:
         if (config_.target_rate_mps == 0) return;
 
         msgs_in_current_window_++;
-        if (msgs_in_current_window_ >= 1000) {
+        uint64_t batch_size = std::min<uint64_t>(1000ULL, std::max<uint64_t>(1ULL, config_.target_rate_mps / 20));
+        if (msgs_in_current_window_ >= batch_size) {
             auto now = std::chrono::high_resolution_clock::now();
             auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(now - last_rate_check_).count();
             
-            double expected_us = (1000.0 / static_cast<double>(config_.target_rate_mps)) * 1000000.0;
+            double expected_us = (static_cast<double>(batch_size) / static_cast<double>(config_.target_rate_mps)) * 1000000.0;
             
             if (elapsed_us < expected_us) {
                 auto sleep_us = static_cast<int64_t>(expected_us - elapsed_us);

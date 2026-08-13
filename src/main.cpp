@@ -20,9 +20,10 @@ void print_usage(const char* prog) {
               << "Network & Performance:\n"
               << "  --ip <address>          Target IP (Default: 239.255.0.1)\n"
               << "  --port <number>         Target UDP Port (Default: 12345)\n"
+              << "  --protocol <type>       Protocol mode: 'market' or 'index' (Default: market)\n"
               << "  --mode <multi|uni>      Network mode: 'multicast' or 'unicast' (Default: multicast)\n"
               << "  --framing <mold|raw>    Framing: 'moldudp64' or 'raw' (Default: moldudp64)\n"
-              << "  --rate <mps>            Target MPS (0 = Max throughput, Default: 1000000)\n"
+              << "  --rate <mps>            Target MPS (0 = Max throughput, Default: 2)\n"
               << "  --count <num>           Total message limit (0 = Continuous stream, Default: 0)\n\n"
               << "Market Kinetics & Session Lifecycle:\n"
               << "  --replay <file.itch>    Replay historical binary ITCH capture log\n"
@@ -50,6 +51,10 @@ int main(int argc, char* argv[]) {
             config.ip = argv[++i];
         } else if (arg == "--port" && i + 1 < argc) {
             config.port = static_cast<uint16_t>(std::stoi(argv[++i]));
+        } else if (arg == "--protocol" && i + 1 < argc) {
+            std::string p = argv[++i];
+            if (p == "index") config.protocol_mode = itch::ProtocolMode::Index;
+            else config.protocol_mode = itch::ProtocolMode::Market;
         } else if (arg == "--mode" && i + 1 < argc) {
             std::string m = argv[++i];
             if (m == "unicast" || m == "uni") config.net_mode = itch::NetworkMode::Unicast;
@@ -60,6 +65,10 @@ int main(int argc, char* argv[]) {
             else config.framing_mode = itch::FramingMode::MoldUDP64;
         } else if (arg == "--rate" && i + 1 < argc) {
             config.target_rate_mps = std::stoull(argv[++i]);
+        } else if (arg == "--exec-ratio" && i + 1 < argc) {
+            config.exec_ratio = static_cast<uint32_t>(std::stoul(argv[++i]));
+        } else if (arg == "--add-ratio" && i + 1 < argc) {
+            config.add_ratio = static_cast<uint32_t>(std::stoul(argv[++i]));
         } else if (arg == "--count" && i + 1 < argc) {
             config.max_count = std::stoull(argv[++i]);
         } else if (arg == "--replay" && i + 1 < argc) {
